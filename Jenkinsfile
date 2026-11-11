@@ -33,12 +33,19 @@ pipeline {
         stage('Authenticate GCP') {
             steps {
                 echo "===== Authenticating with GCP ====="
-                withCredentials([file(credentialsId: 'gcp-service-account', variable: 'KEYFILE')]) {
-                    sh '''
-                        gcloud auth activate-service-account --key-file=$KEYFILE
-                        gcloud config set project ${PROJECT_ID}
-                    '''
-                }
+                
+stage('Authenticate GCP') {
+    steps {
+        sh '''
+            echo "Checking GCP authentication..."
+
+            gcloud auth print-access-token > /dev/null
+
+            echo "GCP authentication successful"
+        '''
+    }
+}
+
             }
         }
 
