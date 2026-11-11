@@ -7,9 +7,9 @@ pipeline {
 
     stages {
 
-        stage('Setup Python 3.13') {
+        stage('Setup Python') {
             steps {
-                echo "===== Setting up Python 3.13 ====="
+                echo "===== Setting up Python ====="
                 sh '''
                     python3 --version
                     rm -rf venv
@@ -26,7 +26,8 @@ pipeline {
         stage('Clean Workspace') {
             steps {
                 echo "===== Cleaning old deployment artifacts ====="
-                sh 'rm -rf .gcloudignore staging/'
+                // Do NOT delete .gcloudignore: it keeps venv/ out of the upload
+                sh 'rm -rf staging/'
             }
         }
 
@@ -36,22 +37,13 @@ pipeline {
                 withCredentials([file(credentialsId: 'gcp-service-account-key', variable: 'GCP_KEY_FILE')]) {
                     sh '''
                         echo "Activating service account..."
-                        gcloud auth activate-service-account --key-file=$GCP_KEY_FILE
-                        gcloud config set project $PROJECT_ID
+                        gcloud auth activate-service-account --key-file="$GCP_KEY_FILE"
+                        gcloud config set project "$PROJECT_ID"
+
+                        echo "Checking GCP authentication..."
+                        gcloud auth print-access-token > /dev/null
+                        echo "GCP authentication successful"
                     '''
-                }
-            }
-        }
-    steps {
-        sh '''
-            echo "Checking GCP authentication..."
-
-            gcloud auth print-access-token > /dev/null
-
-            echo "GCP authentication successful"
-        '''
-    }
-}
                 }
             }
         }
@@ -60,7 +52,6 @@ pipeline {
             steps {
                 echo "===== Deploying App Engine ====="
                 sh '''
-                    . venv/bin/activate
                     gcloud app deploy app.yaml --quiet --verbosity=info
                 '''
             }
