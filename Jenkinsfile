@@ -1,3 +1,7 @@
+// Jenkinsfile for a Jenkins VM that has a service account attached.
+// No key file or Jenkins credential is needed: gcloud uses the VM's
+// service account automatically (metadata server).
+
 pipeline {
     agent any
 
@@ -26,25 +30,22 @@ pipeline {
         stage('Clean Workspace') {
             steps {
                 echo "===== Cleaning old deployment artifacts ====="
-                // Do NOT delete .gcloudignore: it keeps venv/ out of the upload
+                // Keep .gcloudignore so venv/ is not uploaded
                 sh 'rm -rf staging/'
             }
         }
 
-        stage('Authenticate GCP') {
+        stage('Verify GCP Access') {
             steps {
-                echo "===== Authenticating GCP ====="
-                withCredentials([file(credentialsId: 'gcp-service-account-key', variable: 'GCP_KEY_FILE')]) {
-                    sh '''
-                        echo "Activating service account..."
-                        gcloud auth activate-service-account --key-file="$GCP_KEY_FILE"
-                        gcloud config set project "$PROJECT_ID"
+                echo "===== Verifying GCP access (VM service account) ====="
+                sh '''
+                    echo "Active account:"
+                    gcloud auth list
+                    gcloud config set project "$PROJECT_ID"
 
-                        echo "Checking GCP authentication..."
-                        gcloud auth print-access-token > /dev/null
-                        echo "GCP authentication successful"
-                    '''
-                }
+                    gcloud auth print-access-token > /dev/null
+                    echo "GCP authentication successful"
+                '''
             }
         }
 
@@ -52,7 +53,10 @@ pipeline {
             steps {
                 echo "===== Deploying App Engine ====="
                 sh '''
-                    gcloud app deploy app.yaml --quiet --verbosity=info
+                    gcloud app deploy app.yaml \
+                      --project="$PROJECT_ID" \
+                      --quiet \
+                      --verbosity=info
                 '''
             }
         }
